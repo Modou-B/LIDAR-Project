@@ -21,3 +21,23 @@ void loop() {
   myservo.write(90);
   delay((1000));
 }
+
+
+
+
+
+//Exit
+// #include <Servo.h>
+
+// Servo myservo;
+// int val;
+// void setup() {
+//   // put your setup code here, to run once:
+
+// Serial.begin(9600);
+// }
+
+// void loop() {
+  
+//   exit;
+// }
