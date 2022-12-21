@@ -1,0 +1,5 @@
+{
+    "board": "arduino:avr:uno",
+    "sketch": "3D-Room-Scanner.ino",
+    "port": "COM3"
+}

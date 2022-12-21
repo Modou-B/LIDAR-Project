@@ -3,14 +3,13 @@
 #include <Servo.h>
 
 
-Servo myservo1;
-Servo myservo2;
+Servo servo1;
+Servo servo2;
 int DegreeServo1;
 int DegreeServo2;
-int stop = 1;
+int stop = 0;
 
 TFMini tfmini;
- 
 SoftwareSerial SerialTFMini(2, 0);          //The only value that matters here is the first one, 2, Rx
 
 
@@ -63,49 +62,44 @@ void GetRange(){
 void setup()
 {
 // SERVO BGN 
-  //myservo1.attach(9);
-  //myservo2.attach(10);
-  Serial.begin(9600);
+servo1.attach(9);
+servo2.attach(10);
+Serial.begin(9600);
+  
 // SERVO END
 
 // LIDAR BGN
-  Serial.begin(115200);       //Initialize hardware serial port (serial debug port)
-  while (!Serial);            // wait for serial port to connect. Needed for native USB port only
-  Serial.println ("Initializing...");
-  SerialTFMini.begin(TFMINI_BAUDRATE);    //Initialize the data rate for the SoftwareSerial port
-  tfmini.begin(&SerialTFMini);            //Initialize the TF Mini sensor
+   Serial.begin(115200);       //Initialize hardware serial port (serial debug port)
+   while (!Serial);            // wait for serial port to connect. Needed for native USB port only
+   Serial.println ("Initializing...");
+   SerialTFMini.begin(TFMINI_BAUDRATE);    //Initialize the data rate for the SoftwareSerial port
+   tfmini.begin(&SerialTFMini);            //Initialize the TF Mini sensor
 // LIDAR END
 }
  
 void loop()
 {
 // SERVO BGN 
-  myservo2.write(100);
-  myservo1.write(0);
+  servo2.write(100);
+  servo1.write(0);
   delay((1000));
 
   if (!stop) {  
     for(int j = 100; j >= 30; j--) {
-      myservo2.write(j);
-      DegreeServo2 =  myservo2.read();
-      Serial.println(DegreeServo2);
-      myservo1.write(0);
+      servo2.write(j);
+      servo1.write(0);
       delay((500));
       
       for(int i = 0; i <= 180; i++ ) {
-        //delay((2000));
         // LIDAR BGN
         GetRange();
         // LIDAR END
-        //delay((2000));
-        DegreeServo1 = myservo1.read();
-        //Serial.println(val);
-        myservo1.write(i);
+        servo1.write(i);
         delay((4));
       }
     }
-    myservo2.write(100);
-    myservo1.write(0);
+    servo2.write(100);
+    servo1.write(0);
     stop = 1;
   }
 // SERVO END  
