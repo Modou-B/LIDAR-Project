@@ -7,7 +7,7 @@ Servo servo1;
 Servo servo2;
 int DegreeServo1;
 int DegreeServo2;
-int stop = 0;
+int stop = 0;                               // 0 = Start script, 1 = Stop script
 
 TFMini tfmini;
 SoftwareSerial SerialTFMini(2, 0);          //The only value that matters here is the first one, 2, Rx
@@ -53,33 +53,29 @@ void GetRange(){
     getTFminiData(&distance);
     if (distance)
     {
-      Serial.print(distance);
-      Serial.print("cm\t");
+      Serial.println(distance);
+      // Serial.print("cm\t");
     }
   }  
 }
  
 void setup()
 {
-// SERVO BGN 
-servo1.attach(9);
-servo2.attach(10);
-Serial.begin(9600);
-  
-// SERVO END
+  if (stop == 0) {
+    servo1.attach(9);
+    servo2.attach(10);
+    Serial.begin(9600);
+    Serial.begin(115200);                   //Initialize hardware serial port (serial debug port)
 
-// LIDAR BGN
-   Serial.begin(115200);       //Initialize hardware serial port (serial debug port)
-   while (!Serial);            // wait for serial port to connect. Needed for native USB port only
-   Serial.println ("Initializing...");
-   SerialTFMini.begin(TFMINI_BAUDRATE);    //Initialize the data rate for the SoftwareSerial port
-   tfmini.begin(&SerialTFMini);            //Initialize the TF Mini sensor
-// LIDAR END
+    while (!Serial);                        // wait for serial port to connect. Needed for native USB port only
+    Serial.println ("Initializing...");
+    SerialTFMini.begin(TFMINI_BAUDRATE);    //Initialize the data rate for the SoftwareSerial port
+    tfmini.begin(&SerialTFMini);            //Initialize the TF Mini sensor
+  } 
 }
  
 void loop()
 {
-// SERVO BGN 
   servo2.write(100);
   servo1.write(0);
   delay((1000));
@@ -91,9 +87,7 @@ void loop()
       delay((500));
       
       for(int i = 0; i <= 180; i++ ) {
-        // LIDAR BGN
         GetRange();
-        // LIDAR END
         servo1.write(i);
         delay((4));
       }
@@ -102,5 +96,4 @@ void loop()
     servo1.write(0);
     stop = 1;
   }
-// SERVO END  
 }
