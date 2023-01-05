@@ -44,7 +44,7 @@ void getTFminiData(int* distance)
   }
 }
  
-void GetRange(){
+void GetRange(int x_cord, int y_cord){
   int distance = 0;
  
   getTFminiData(&distance);
@@ -53,7 +53,15 @@ void GetRange(){
     getTFminiData(&distance);
     if (distance)
     {
-      Serial.println(distance);
+      // Serial.println(distance);
+
+      Serial.print(distance);
+      Serial.print(",");
+      Serial.print(x_cord);
+      Serial.print(",");
+      Serial.println(y_cord);
+
+
       // Serial.print("cm\t");
     }
   }  
@@ -87,8 +95,7 @@ void loop()
       delay((500));
       
       for(int i = 0; i <= 180; i++ ) {
-        GetRange();
-        servo1.write(i);
+        GetRange(j,i);
         delay((4));
       }
     }

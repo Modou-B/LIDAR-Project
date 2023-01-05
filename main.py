@@ -21,4 +21,14 @@ while True:
     while (arduinoData.inWaiting()== 0):
         pass
     dataPacket = arduinoData.readline()
-    print(dataPacket)
+    dataPacket = str(dataPacket, 'utf-8')
+    dataPacket = dataPacket.strip('\r\n')
+    splitPacket = dataPacket.split(",")
+
+    if (splitPacket[0] != "Initializing..."):
+        lidarData = int(splitPacket[0])
+        x = int(splitPacket[1])
+        y = int(splitPacket[2])
+        print(lidarData,"cm"," X =",x,"Y =",y)
+
+   
