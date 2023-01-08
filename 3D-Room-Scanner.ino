@@ -2,12 +2,19 @@
 #include "TFMini.h"
 #include <Servo.h>
 
+const int minServo1MicroDegree = 544;
+const int minServo2MicroDegree = 1500;
+
+int servo1MicroDegree;
+int servo2MicroDegree;
 
 Servo servo1;
 Servo servo2;
 int DegreeServo1;
 int DegreeServo2;
-int stop = 0;                               // 0 = Start script, 1 = Stop script
+
+// int stop = 0;                               // 0 = Start script, 1 = Stop script
+int stop = 1;
 
 TFMini tfmini;
 SoftwareSerial SerialTFMini(2, 0);          //The only value that matters here is the first one, 2, Rx
@@ -82,7 +89,7 @@ void setup()
   } 
 }
  
-void loop()
+void loop() 
 {
   servo2.write(100);
   servo1.write(0);
@@ -92,11 +99,12 @@ void loop()
     for(int j = 100; j >= 30; j--) {
       servo2.write(j);
       servo1.write(0);
-      delay((1000));
+      delay((200));
       
       for(int i = 0; i <= 180; i++ ) {
         GetRange(j,i);
-        delay((500));
+        servo1.write(i);
+        delay((4));
       }
     }
     servo2.write(100);
