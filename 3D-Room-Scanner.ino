@@ -92,11 +92,11 @@ void loop()
     for(int j = 100; j >= 30; j--) {
       servo2.write(j);
       servo1.write(0);
-      delay((500));
+      delay((1000));
       
       for(int i = 0; i <= 180; i++ ) {
         GetRange(j,i);
-        delay((4));
+        delay((500));
       }
     }
     servo2.write(100);
