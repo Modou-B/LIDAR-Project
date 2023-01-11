@@ -13,8 +13,7 @@ Servo servo2;
 int DegreeServo1;
 int DegreeServo2;
 
-// int stop = 0;                               // 0 = Start script, 1 = Stop script
-int stop = 1;
+int stop = 1;                               // 0 = Start script, 1 = Stop script
 
 TFMini tfmini;
 SoftwareSerial SerialTFMini(2, 0);          //The only value that matters here is the first one, 2, Rx
@@ -91,6 +90,7 @@ void setup()
  
 void loop() 
 {
+  // --- write ---
   servo2.write(100);
   servo1.write(0);
   delay((1000));
@@ -111,4 +111,46 @@ void loop()
     servo1.write(0);
     stop = 1;
   }
+
+  // --- writeMicroseconds ---
+  // int y_cord = 101;
+  // int x_cord = 0;
+  // servo2.writeMicroseconds(1500);
+  // servo1.writeMicroseconds(544);
+  // delay((1000));
+
+  // if (!stop) {  
+  //   for(int j = 1500; j >= 800; j -=5) {
+  //     if (j < 800) {
+  //       j = 800;
+  //     }
+
+  //     if (y_cord > 30) {
+  //       y_cord--;
+  //     }
+
+  //     servo2.writeMicroseconds(j);
+  //     servo1.writeMicroseconds(0);
+  //     delay((200));
+  //     x_cord = 0;
+  //     for(int i = 544; i <= 2389; i +=5) {
+  //       if (i > 2389) {
+  //         i = 2389;
+  //       }
+
+  //       if (x_cord < 180) {
+  //         x_cord++; 
+  //       }
+
+  //       GetRange(y_cord,x_cord);
+  //       servo1.writeMicroseconds(i);
+  //       delay((4));
+  //     }
+  //   }
+  //   servo2.writeMicroseconds(1500);
+  //   servo1.writeMicroseconds(544);
+  //   stop = 1;
+  // }
+
+
 }
