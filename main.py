@@ -22,15 +22,6 @@ import open3d as o3d
 # csv
 import csv
     
-#local test Data
-#testPoints = []
-#for y in range(0, 180):
-#    for x in range(0, 180):
-#        z = np.random.randint(10, 800)
-#        newX = z * np.cos(y) * np.sin(x)
-#        newY = z * np.cos(y) * np.cos(x)
-#        newZ = z * np.sin(y)
-#        testPoints += [[newX, newY, newZ]]
 
 # initialize csv file
 f = open('path/to/csv_file', 'w')
@@ -66,18 +57,20 @@ while keepRunning:
 
     if (splitPacket[0] != "Initializing..."):
         lidarDistance = int(splitPacket[0])
-        xAngle = int(splitPacket[1])
-        yAngle = int(splitPacket[2])
+        xAngle = int(splitPacket[2])
+        yAngle = (int(splitPacket[1]) - 100) * -1
 
         # write real world data to csv file for testing
         writer.writerow([xAngle, yAngle, lidarDistance])
+
         # convert spherical coordinates to cartesian coordinates
-        x = lidarDistance * np.cos(yAngle) * np.sin(xAngle)
-        y = lidarDistance * np.cos(yAngle) * np.cos(xAngle)
-        z = lidarDistance * np.sin(yAngle)     
+        y = lidarDistance * np.cos(np.deg2rad(yAngle)) * np.sin(np.deg2rad(xAngle))
+        x = lidarDistance * np.cos(np.deg2rad(yAngle)) * np.cos(np.deg2rad(xAngle))
+        z = lidarDistance * np.sin(np.deg2rad(yAngle))
 
         # add point to cloud
-        pcd.points.extend(o3d.utility.Vector3dVector([[x,y,z]]))
+        numpyArray = np.asarray([[x,y,z]])
+        pcd.points.extend(o3d.utility.Vector3dVector(numpyArray))
         pcd.paint_uniform_color([0.9, 0.9, 0.9])
         print(lidarDistance,"cm"," X =",x,"Y =",y)
         
@@ -87,7 +80,7 @@ while keepRunning:
     vis.update_renderer()
 
 f.close()
-vis.destroy_window
+# vis.destroy_window
     
 
    
