@@ -33,7 +33,7 @@ import csv
 #        testPoints += [[newX, newY, newZ]]
 
 # initialize csv file
-f = open('C:\\Repos\\LIDAR-Project\\test.csv', 'w')
+f = open('path/to/csv_file', 'w')
 
 writer = csv.writer(f)
 header = ['xAngle','yAngle','distance']
@@ -46,12 +46,14 @@ time.sleep(1)
 # create Visualizer and Window
 vis = o3d.visualization.Visualizer()
 vis.create_window(height=640, width=860)
+visRenderOption = vis.get_render_option()
+visRenderOption.background_color = np.asarray([0,0,0])
 
 # initialize PointCloud instance
 pcd = o3d.geometry.PointCloud()
-pcd.points = o3d.utility.Vector3dVector([[0,0,400],[90,90,-400]])
+pcd.points = o3d.utility.Vector3dVector([[0,0,140],[-20,-20,0]])
 vis.add_geometry(pcd)
-#
+
 # run non-blocking visualization
 keepRunning = True
 while keepRunning:
@@ -64,41 +66,20 @@ while keepRunning:
 
     if (splitPacket[0] != "Initializing..."):
         lidarDistance = int(splitPacket[0])
-        xAngle = int(splitPacket[2])
-        yAngle = (int(splitPacket[1]) - 100) * -1
+        xAngle = int(splitPacket[1])
+        yAngle = int(splitPacket[2])
 
         # write real world data to csv file for testing
         writer.writerow([xAngle, yAngle, lidarDistance])
-
         # convert spherical coordinates to cartesian coordinates
-        # h1 = np.cos(np.deg2rad(yAngle)) * lidarDistance
-        # y = np.sin(np.deg2rad(yAngle)) * lidarDistance
-        # x = np.sin(np.deg2rad(xAngle)) * h1
-        # z = np.cos(np.deg2rad(xAngle)) * h1
-
-        # y = lidarDistance * np.cos(np.deg2rad(yAngle)) * np.sin(np.deg2rad(xAngle))
-        # x = lidarDistance * np.cos(np.deg2rad(yAngle)) * np.cos(np.deg2rad(xAngle))
-        # z = lidarDistance * np.sin(np.deg2rad(yAngle))
-
-        y = lidarDistance * np.cos(np.deg2rad(yAngle)) * np.sin(np.deg2rad(xAngle))
-        x = lidarDistance * np.cos(np.deg2rad(yAngle)) * np.cos(np.deg2rad(xAngle))
-        z = lidarDistance * np.sin(np.deg2rad(yAngle))
-
-
-        # h1 = np.deg2rad(xAngle)
-        # y = np.cos(np.deg2rad(yAngle)) * lidarDistance * np.sin(h1)
-        # x = np.cos(np.deg2rad(yAngle)) * lidarDistance * np.cos(h1)
-        # z = np.sin(np.deg2rad(yAngle)) * lidarDistance
-
-        # x = lidarDistance * np.cos(np.deg2rad(yAngle)) * np.cos(np.deg2rad(xAngle))
-        # y = lidarDistance * np.cos(np.deg2rad(yAngle)) * np.sin(np.deg2rad(xAngle))
-        # z = lidarDistance * np.sin(np.deg2rad(yAngle))
-
+        x = lidarDistance * np.cos(yAngle) * np.sin(xAngle)
+        y = lidarDistance * np.cos(yAngle) * np.cos(xAngle)
+        z = lidarDistance * np.sin(yAngle)     
 
         # add point to cloud
-        numpyArray = np.asarray([[x,y,z]])
-        pcd.points.extend(o3d.utility.Vector3dVector(numpyArray))  
-        print(lidarDistance,"cm"," X =",xAngle,"Y =",yAngle)
+        pcd.points.extend(o3d.utility.Vector3dVector([[x,y,z]]))
+        pcd.paint_uniform_color([0.9, 0.9, 0.9])
+        print(lidarDistance,"cm"," X =",x,"Y =",y)
         
         vis.update_geometry(pcd)
     
