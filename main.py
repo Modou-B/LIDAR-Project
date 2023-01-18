@@ -23,7 +23,7 @@ import open3d as o3d
 import csv
 
 # initialize csv file
-f = open('path/to/csv_file', 'w')
+f = open('C:\\Repos\\LIDAR-Project\\test.csv', 'w')
 
 writer = csv.writer(f)
 header = ['xAngle','yAngle','distance']
@@ -59,14 +59,19 @@ while keepRunning:
     while (arduinoData.inWaiting()== 0):
         pass
     dataPacket = arduinoData.readline()
+    print(dataPacket)
     dataPacket = str(dataPacket, 'utf-8')
     dataPacket = dataPacket.strip('\r\n')
+    # dataPacket = dataPacket[:dataPacket.index("Ende")]
     splitPacket = dataPacket.split(",")
+    # splitPacket = list(filter(None, splitPacket))
+    print(splitPacket)
 
-    if (splitPacket[0] != "Initializing..."):
-        lidarDistance = int(splitPacket[0])
-        xAngle = int(splitPacket[2])
-        yAngle = (int(splitPacket[1]) - 100) * -1
+    if (splitPacket[0] != '' and len(splitPacket) == 3 ):
+        # print(splitPacket)
+        lidarDistance = float(splitPacket[0])
+        xAngle = float(splitPacket[2])
+        yAngle = (float(splitPacket[1]) - 100) * -1
 
         # set the depth of the white color dependent on the lidar distance
         colorDepth = 1 - lidarDistance / 1000
@@ -82,7 +87,7 @@ while keepRunning:
         # add point with color to cloud
         pointCloudColors.extend([[colorDepth,colorDepth,colorDepth]])
         pcd.colors = o3d.utility.Vector3dVector(pointCloudColors)      
-        pcd.points.extend(o3d.utility.Vector3dVector([x,y,z]))
+        pcd.points.extend(o3d.utility.Vector3dVector([[x,y,z]]))
         
         vis.update_geometry(pcd)
 

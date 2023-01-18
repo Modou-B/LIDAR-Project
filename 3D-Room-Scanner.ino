@@ -3,11 +3,11 @@
 #include <Servo.h>
 
 const double minHorizontalServoMicroDegree = 544; // get data tomorrow
-const double maxHorizontalServoMicroDegree = 2000; // get data tomorrow
-const double minVerticalServoMicroDegree = 800; // get data tomorrow
-const double maxVerticalServoMicroDegree = 1500; //get data tomorrow
+const double maxHorizontalServoMicroDegree = 2400; // get data tomorrow
+const double minVerticalServoMicroDegree = 853; // get data tomorrow
+const double maxVerticalServoMicroDegree = 1575; //get data tomorrow
 
-double horizontalMicroDegree;
+double horizontalMicroDegreeT;
 double verticalMicroDegree;
 double horizontalDegree;
 double verticalDegree;
@@ -15,7 +15,7 @@ double verticalDegree;
 Servo horizontalServo;
 Servo verticalServo;
 
-int startScript = 0; // 1 = Start script, 0 = Stop script
+int startScript = 1; // 1 = Start script, 0 = Stop script
 
 // Lidar port allocation
 TFMini tfmini;
@@ -54,7 +54,7 @@ void getTFminiData(int* distance)
   }
 }
  
-void GetRange(double horizontalDegree, double verticalDegree)
+void GetRange(double horizontalDegreeTest, double verticalDegreeTest)
 {
   int distance = 0;
   getTFminiData(&distance);
@@ -65,23 +65,25 @@ void GetRange(double horizontalDegree, double verticalDegree)
     if (distance) {
       Serial.print(distance);
       Serial.print(",");
-      Serial.print(horizontalDegree);
+      Serial.print(horizontalDegreeTest);
       Serial.print(",");
-      Serial.println(verticalDegree);
+      Serial.println(verticalDegreeTest);
+      // Serial.print(",");
+      // Serial.println("Ende");
     }
   }  
 }
 
 void setup()
 {
-  if (stop == 0) {
+  if (startScript == 1) {
     horizontalServo.attach(9);
     verticalServo.attach(10);
     Serial.begin(9600);
     Serial.begin(115200);                   //Initialize hardware serial port (serial debug port)
 
     while (!Serial);                        // wait for serial port to connect. Needed for native USB port only
-    Serial.println("Initializing...");
+    // Serial.println("Initializing...");
     SerialTFMini.begin(TFMINI_BAUDRATE);    //Initialize the data rate for the SoftwareSerial port
     tfmini.begin(&SerialTFMini);            //Initialize the TF Mini sensor
   } 
@@ -89,52 +91,34 @@ void setup()
  
 void loop() 
 {
-  
-  /* FIRST GET MICROSECONDS DATA TOMORROW
-  if (startScript) {
-    horizontalServo.write(0)
-    delay(400)
-    Serial.println("HORIZONTAL MIN MICROSECONDS = ",horizontalServo.readMicroSeconds());
-    delay(100)
-    horizontalServo.write(180)
-    delay(400)
-    Serial.println("HORIZONTAL MAX MICROSECONDS = ",horizontalServo.readMicroSeconds());
-    delay(100)
-    verticalServo.write(100)
-    delay(400)
-    Serial.println("VERTICAL MAX MICROSECONDS = ",verticalServo.readMicroSeconds());
-    delay(100)
-    verticalServo.write(30)
-    delay(400)
-    Serial.println("VERTICAL MIN MICROSECONDS = ",verticalServo.readMicroSeconds());
-    delay(100)
-  }
-  */
+  double horizontalStep = (maxHorizontalServoMicroDegree - minHorizontalServoMicroDegree) / 180;
+  double verticalStep = (maxVerticalServoMicroDegree - minVerticalServoMicroDegree) / 70;
 
-
-  /*if (startScript) {  
+  double horizontalInterval = horizontalStep / 2;
+  double verticalInterval = verticalStep / 2;
+  if (startScript == 1) {  
   // --- Set starting positions ---
   verticalServo.writeMicroseconds(maxVerticalServoMicroDegree);
   horizontalServo.writeMicroseconds(minHorizontalServoMicroDegree);
   delay((1000));
 
-  for(verticalMicroDegree = maxVerticalServoMicroDegree; verticalMicroDegree >= minVerticalServoMicroDegree; verticalMicroDegree -= 5) {
-    verticalServo.writeMicroseconds(verticalMicroDegree);
+  for(double verticalMicroDegreeT = maxVerticalServoMicroDegree; verticalMicroDegreeT >= minVerticalServoMicroDegree; verticalMicroDegreeT -= verticalInterval) {
+    verticalServo.writeMicroseconds(verticalMicroDegreeT);
     horizontalServo.writeMicroseconds(minHorizontalServoMicroDegree);
     delay((200));
     
-    for(horizontalMicroDegree = minHorizontalServoMicroDegree; horizontalMicroDegree <= maxHorizontalServoMicroDegree; horizontalMicroDegree += 5) {
-      horizontalDegree = (horizontalMicroDegree - minHorizontalServoMicroDegree) / 10;
-      verticalDegree = (verticalMicroDegree - minVerticalServoMicroDegree) / 10;
+    for(double horizontalMicroDegreeT = minHorizontalServoMicroDegree; horizontalMicroDegreeT <= maxHorizontalServoMicroDegree; horizontalMicroDegreeT += horizontalInterval) {
+      horizontalDegree = (horizontalMicroDegreeT - minHorizontalServoMicroDegree) / horizontalStep;
+      verticalDegree = (verticalMicroDegreeT - minVerticalServoMicroDegree) / verticalStep;
       
-      horizontalServo.writeMicroseconds(horizontalMicroDegree);
+      horizontalServo.writeMicroseconds(horizontalMicroDegreeT);
       
       delay((4));
       GetRange(horizontalDegree, verticalDegree);
-      delay((2));
+      delay((8));
     }
   }
   
   startScript = 0;
-  }*/
+  }
 }
