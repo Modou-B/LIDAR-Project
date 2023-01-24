@@ -44,17 +44,11 @@ while True:
     while (arduinoData.inWaiting()== 0):
         pass
     dataPacket = arduinoData.readline()
-    print(dataPacket)
     dataPacket = str(dataPacket, 'utf-8')
-
     dataPacket = dataPacket.strip('\r\n')
-    # dataPacket = dataPacket[:dataPacket.index("Ende")]
     splitPacket = dataPacket.split(",")
-    # splitPacket = list(filter(None, splitPacket))
-    print(splitPacket)
 
     if (splitPacket[0] != '' and len(splitPacket) == 3 ):
-        # print(splitPacket)
         lidarDistance = float(splitPacket[0])
         xAngle = float(splitPacket[2])
         yAngle = (float(splitPacket[1]) - 100) * -1
@@ -67,7 +61,7 @@ while True:
         x = lidarDistance * np.cos(np.deg2rad(yAngle)) * np.cos(np.deg2rad(xAngle))
         z = lidarDistance * np.sin(np.deg2rad(yAngle))
 
-        # add point with color to cloud
+        # add point with white color depth to cloud
         pointCloudColors.extend([[colorDepth,colorDepth,colorDepth]])
         pcd.colors = o3d.utility.Vector3dVector(pointCloudColors)      
         pcd.points.extend(o3d.utility.Vector3dVector([[x,y,z]]))
