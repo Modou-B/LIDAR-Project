@@ -2,13 +2,9 @@
 # titel: LIDAR-Room-Scnanner
 # date: 09.11.2022
 # autors: Momodou Berlamann, Julian Sommer
-
 # brief explanation:
 # This program will read and display the information gathered through a LIDAR-sensor combined, 
 # with servo engines to scan rooms and the objects that are in it. 
-'''
-
-'''documentation
 '''
 
 # main 
@@ -19,16 +15,6 @@ import numpy as np
 # Visualization
 import open3d as o3d
 
-# csv
-import csv
-
-# initialize csv file
-f = open('C:\\Repos\\LIDAR-Project\\test.csv', 'w')
-
-writer = csv.writer(f)
-header = ['xAngle','yAngle','distance']
-writer.writerow(header)
-
 # initialize Arduino
 arduinoData = serial.Serial('com3', 115200)
 time.sleep(1)
@@ -37,7 +23,7 @@ time.sleep(1)
 vis = o3d.visualization.Visualizer()
 vis.create_window(height=640, width=860)
 
-# set render options
+# set render options (background color and size of the points)
 visRenderOption = vis.get_render_option()
 visRenderOption.background_color = np.asarray([0,0,0])
 visRenderOption.point_size = 1.5
@@ -54,13 +40,13 @@ pointCloudColors = [
 ]
 
 # run non-blocking visualization
-keepRunning = True
-while keepRunning:
+while True:
     while (arduinoData.inWaiting()== 0):
         pass
     dataPacket = arduinoData.readline()
     print(dataPacket)
     dataPacket = str(dataPacket, 'utf-8')
+
     dataPacket = dataPacket.strip('\r\n')
     # dataPacket = dataPacket[:dataPacket.index("Ende")]
     splitPacket = dataPacket.split(",")
@@ -76,9 +62,6 @@ while keepRunning:
         # set the depth of the white color dependent on the lidar distance
         colorDepth = 1 - lidarDistance / 1000
 
-        # write real world data to csv file for testing
-        writer.writerow([xAngle, yAngle, lidarDistance])
-
         # convert spherical coordinates to cartesian coordinates
         y = lidarDistance * np.cos(np.deg2rad(yAngle)) * np.sin(np.deg2rad(xAngle))
         x = lidarDistance * np.cos(np.deg2rad(yAngle)) * np.cos(np.deg2rad(xAngle))
@@ -93,10 +76,5 @@ while keepRunning:
 
         print(lidarDistance,"cm"," X =",x,"Y =",y)
     
-    keepRunning = vis.poll_events()
+    vis.poll_events()
     vis.update_renderer()
-
-f.close()
-    
-
-   
