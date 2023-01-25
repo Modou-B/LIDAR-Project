@@ -15,11 +15,71 @@ double verticalDegree;
 Servo horizontalServo;
 Servo verticalServo;
 
-int startScript = 1; // 1 = Start script, 0 = Stop script
+int startScript = 0; // 1 = Start script, 0 = Stop script
 
 // Lidar port allocation
 TFMini tfmini;
 SoftwareSerial SerialTFMini(2, 0);
+
+
+void getPrizeLoop()
+{
+  double horizontalStep = (maxHorizontalServoMicroDegree - minHorizontalServoMicroDegree) / 180;
+  double verticalStep = (maxVerticalServoMicroDegree - minVerticalServoMicroDegree) / 70;
+
+  double horizontalInterval = horizontalStep / 2;
+  double verticalInterval = verticalStep / 2;
+  if (startScript == 1) {  
+  // --- Set starting positions ---
+  verticalServo.writeMicroseconds(maxVerticalServoMicroDegree);
+  horizontalServo.writeMicroseconds(minHorizontalServoMicroDegree);
+  delay((1000));
+
+  for(double verticalMicroDegreeT = maxVerticalServoMicroDegree; verticalMicroDegreeT >= minVerticalServoMicroDegree; verticalMicroDegreeT -= verticalInterval) {
+    verticalServo.writeMicroseconds(verticalMicroDegreeT);
+    horizontalServo.writeMicroseconds(minHorizontalServoMicroDegree);
+    delay((200));
+    
+    for(double horizontalMicroDegreeT = minHorizontalServoMicroDegree; horizontalMicroDegreeT <= maxHorizontalServoMicroDegree; horizontalMicroDegreeT += horizontalInterval) {
+      horizontalDegree = (horizontalMicroDegreeT - minHorizontalServoMicroDegree) / horizontalStep;
+      verticalDegree = (verticalMicroDegreeT - minVerticalServoMicroDegree) / verticalStep;
+      
+      horizontalServo.writeMicroseconds(horizontalMicroDegreeT);
+      
+      delay((4));
+      GetRange(horizontalDegree, verticalDegree);
+      delay((8));
+    }
+  }
+  startScript = 0;
+  }
+
+}
+
+void getFastLoop()
+{
+  // --- write ---
+  verticalServo.write(100);
+  horizontalServo.write(0);
+  delay((1000));
+
+  if (startScript) {  
+    for(int j = 100; j >= 30; j--) {
+      verticalServo.write(j);
+      horizontalServo.write(0);
+      delay((200));
+      
+      for(int i = 0; i <= 180; i++ ) {
+        GetRange(j,i);
+        horizontalServo.write(i);
+        delay((4));
+      }
+    }
+    verticalServo.write(100);
+    horizontalServo.write(0);
+    startScript = 0;
+  }
+}
 
 void getTFminiData(int* distance)
 {
@@ -91,34 +151,6 @@ void setup()
  
 void loop() 
 {
-  double horizontalStep = (maxHorizontalServoMicroDegree - minHorizontalServoMicroDegree) / 180;
-  double verticalStep = (maxVerticalServoMicroDegree - minVerticalServoMicroDegree) / 70;
-
-  double horizontalInterval = horizontalStep / 2;
-  double verticalInterval = verticalStep / 2;
-  if (startScript == 1) {  
-  // --- Set starting positions ---
-  verticalServo.writeMicroseconds(maxVerticalServoMicroDegree);
-  horizontalServo.writeMicroseconds(minHorizontalServoMicroDegree);
-  delay((1000));
-
-  for(double verticalMicroDegreeT = maxVerticalServoMicroDegree; verticalMicroDegreeT >= minVerticalServoMicroDegree; verticalMicroDegreeT -= verticalInterval) {
-    verticalServo.writeMicroseconds(verticalMicroDegreeT);
-    horizontalServo.writeMicroseconds(minHorizontalServoMicroDegree);
-    delay((200));
-    
-    for(double horizontalMicroDegreeT = minHorizontalServoMicroDegree; horizontalMicroDegreeT <= maxHorizontalServoMicroDegree; horizontalMicroDegreeT += horizontalInterval) {
-      horizontalDegree = (horizontalMicroDegreeT - minHorizontalServoMicroDegree) / horizontalStep;
-      verticalDegree = (verticalMicroDegreeT - minVerticalServoMicroDegree) / verticalStep;
-      
-      horizontalServo.writeMicroseconds(horizontalMicroDegreeT);
-      
-      delay((4));
-      GetRange(horizontalDegree, verticalDegree);
-      delay((8));
-    }
-  }
-  
-  startScript = 0;
-  }
+  getFastLoop();
+  // getPrizeLoop();
 }
