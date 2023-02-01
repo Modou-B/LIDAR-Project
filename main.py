@@ -39,6 +39,16 @@ pointCloudColors = [
     [0.1,0.1,0.1]
 ]
 
+testData = '.2'
+testArray = ['2','','3']
+if ('' not in testArray):
+    print('ok')
+
+print(testData)
+testData = '.'.join(testData.split('.',-1)[:2])
+
+print(testData)
+
 # run non-blocking visualization
 while True:
     while (arduinoData.inWaiting()== 0):
@@ -48,7 +58,13 @@ while True:
     dataPacket = dataPacket.strip('\r\n')
     splitPacket = dataPacket.split(",")
 
-    if (splitPacket[0] != '' and len(splitPacket) == 3 ):
+    if ('' not in splitPacket and len(splitPacket) == 3):
+        for i in range(len(splitPacket)):
+            splitPacket[i] = '.'.join(splitPacket[i].split('.',-1)[:2])
+            
+            if splitPacket[i].startswith('.'):
+                splitPacket[i] = '0' + splitPacket[i]
+        
         lidarDistance = float(splitPacket[0])
         xAngle = float(splitPacket[2])
         yAngle = (float(splitPacket[1]) - 100) * -1
@@ -69,6 +85,6 @@ while True:
         vis.update_geometry(pcd)
 
         print(lidarDistance,"cm"," X =",x,"Y =",y)
-    
+        
     vis.poll_events()
     vis.update_renderer()
