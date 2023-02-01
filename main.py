@@ -39,16 +39,6 @@ pointCloudColors = [
     [0.1,0.1,0.1]
 ]
 
-testData = '.2'
-testArray = ['2','','3']
-if ('' not in testArray):
-    print('ok')
-
-print(testData)
-testData = '.'.join(testData.split('.',-1)[:2])
-
-print(testData)
-
 # run non-blocking visualization
 while True:
     while (arduinoData.inWaiting()== 0):
