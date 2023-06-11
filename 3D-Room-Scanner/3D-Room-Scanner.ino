@@ -137,8 +137,8 @@ void GetRange(double horizontalDegreeTest, double verticalDegreeTest)
 void setup()
 {
   if (startScript == 1) {
-    //horizontalServo.attach(9);
-    //verticalServo.attach(10);
+    horizontalServo.attach(9);
+    verticalServo.attach(10);
     Serial.begin(9600);
     Serial.begin(115200);                   //Initialize hardware serial port (serial debug port)
 
