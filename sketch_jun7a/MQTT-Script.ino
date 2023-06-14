@@ -1,15 +1,18 @@
 #include <ESP8266WiFi.h>
 #include <PubSubClient.h>
 
-const char* _SSID = "FRITZ!Box 6660 Cable EF";
-const char* _Password = "*****************";
-const char* mqtt_server = "127.0.0.1";
-const char* mqtt_user = "user";
-const char* mqtt_password = "test";
+const char* _SSID = "BBS-Public";
+const char* _Password = "SchuelerWLan4BBSB";
+const char* mqtt_server = "10.250.11.90"; // generiert aus 0.0.0.1 in der mosquitto.conf = 1883 0.0.0.1
+//const char* mqtt_user = "roger";
+// const char* mqtt_password = "password";
 
 WiFiClient espClient;
 PubSubClient client(espClient);
-
+unsigned long lastMsg = 0;
+#define MSG_BUFFER_SIZE	(50)
+char msg[MSG_BUFFER_SIZE];
+int value = 0;
 
 void callback(char* topic, byte* payload, unsigned int length) 
 {
@@ -68,6 +71,7 @@ void reconnect()
   // Loop until we're reconnected
   while (!client.connected()) 
   {
+    delay(10000);
     Serial.print("Attempting MQTT connection...");
     
     // Create a random client ID
@@ -75,13 +79,14 @@ void reconnect()
     clientId += String(random(0xffff), HEX);
     
     // Attempt to connect
-    if (client.connect(clientId.c_str()), mqtt_user, mqtt_password) 
+    // if (client.connect(clientId.c_str()), mqtt_user, mqtt_password) 
+    if (client.connect(clientId.c_str())) 
     {
       Serial.println("connected");
       // Once connected, publish an announcement...
       client.publish("lidar/sendCords", "hello world");
       // ... and resubscribe
-      client.subscribe("lidar/start");
+      //client.subscribe("lidar/start");
     } else 
     {
       Serial.print("failed, rc=");
@@ -108,11 +113,21 @@ void setup()
 
 void loop() 
 {
-  // if (!client.connected()) 
-  // {
-  //   reconnect();
-  // }
-  // 
-  // client.loop();
+  /*
+  if (!client.connected()) {
+    reconnect();
+  }
 
+  client.loop();
+
+  unsigned long now = millis();
+  if (now - lastMsg > 2000) {
+    lastMsg = now;
+    ++value;
+    snprintf (msg, MSG_BUFFER_SIZE, "hello world #%ld", value);
+    Serial.println("Publish message: ");
+    Serial.println(msg);
+    client.publish("lidar/sendCords", msg);
+  }
+  */
 }
