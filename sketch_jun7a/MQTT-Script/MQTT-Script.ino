@@ -1,9 +1,9 @@
 #include <ESP8266WiFi.h>
 #include <PubSubClient.h>
 
-const char* _SSID = "BBS-Public";
-const char* _Password = "SchuelerWLan4BBSB";
-const char* mqtt_server = "10.250.11.90"; // generiert aus 0.0.0.1 in der mosquitto.conf = 1883 0.0.0.1
+const char* _SSID = "FRITZ!Box 6660 Cable EF";
+const char* _Password = "******";
+const char* mqtt_server = "192.168.178.38"; // generiert aus 0.0.0.1 in der mosquitto.conf = 1883 0.0.0.1
 //const char* mqtt_user = "roger";
 // const char* mqtt_password = "password";
 
