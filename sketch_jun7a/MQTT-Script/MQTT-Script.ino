@@ -2,7 +2,7 @@
 #include <PubSubClient.h>
 
 const char* _SSID = "FRITZ!Box 6660 Cable EF";
-const char* _Password = "******";
+const char* _Password = "21006767553113784465";
 const char* mqtt_server = "192.168.178.38"; // generiert aus 0.0.0.1 in der mosquitto.conf = 1883 0.0.0.1
 //const char* mqtt_user = "roger";
 // const char* mqtt_password = "password";
@@ -84,7 +84,7 @@ void reconnect()
     {
       Serial.println("connected");
       // Once connected, publish an announcement...
-      client.publish("lidar/sendCords", "hello world");
+      client.publish("lidar/process", "90.0");
       // ... and resubscribe
       //client.subscribe("lidar/start");
     } else 
@@ -127,7 +127,7 @@ void loop()
     snprintf (msg, MSG_BUFFER_SIZE, "hello world #%ld", value);
     Serial.println("Publish message: ");
     Serial.println(msg);
-    client.publish("lidar/sendCords", msg);
+    client.publish("lidar/process", "90.0");
   }
   */
 }
