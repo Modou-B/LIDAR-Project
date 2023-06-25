@@ -8,28 +8,33 @@
 '''
 
 # main 
-import serial
-import time
-import numpy as np
-
-# Visualization
-# import open3d as o3d
-
-# python 3.6
-
 import random
 import time
+import numpy as np
+import json
 
+# Visualization
+import open3d as o3d
+
+# Mqtt
 from paho.mqtt import client as mqtt_client
 
+# Mqtt Client Values
+BROKER = '127.0.0.1'
+PORT = 1883
 
-broker = '127.0.0.1'
-port = 1883
-topic = "lidar/sendCords"
-# Generate a Client ID with the publish prefix.
-client_id = f'publish-{random.randint(0, 1000)}'
-# username = 'emqx'
-# password = 'public'
+# Topics
+CORD_TOPIC = "lidar/sendCords"
+RESTART_TOPIC = "lidar/restart"
+
+# Current Cord Values
+cordsWereUpdated = False
+xCord = 0
+yCord = 0
+zCord = 0
+
+# Current Restart Value
+restartValue = 0
 
 def connect_mqtt():
     def on_connect(client, userdata, flags, rc):
@@ -38,10 +43,13 @@ def connect_mqtt():
         else:
             print("Failed to connect, return code %d\n", rc)
 
+    # Generate a Client ID with the publish prefix.
+    client_id = f'Visualization-{random.randint(0, 1000)}'
+
     client = mqtt_client.Client(client_id)
-    # client.username_pw_set(username, password)
     client.on_connect = on_connect
-    client.connect(broker, port)
+    client.connect(BROKER, PORT)
+    
     return client
 
 
@@ -61,117 +69,29 @@ def connect_mqtt():
         # if msg_count > 5:
         #     break
 
-
-def subscribe(client: mqtt_client):
-    def on_message(client, userdata, msg):
-        print(f"Received `{msg.payload.decode()}` from `{msg.topic}` topic")
+def subscribeTopics(client: mqtt_client.Client)-> None:
+    client.subscribe(CORD_TOPIC)
+    client.subscribe(RESTART_TOPIC)
+    
+def addCallbacksToTopics(client: mqtt_client.Client)-> None:
+    def setCords(client, userdata, msg: mqtt_client.MQTTMessage)-> None:
+        cordData = json.loads(msg.payload)
         
+        global zCord, xCord, yCord, cordsWereUpdated
+        zCord = float(cordData['z'])
+        xCord = float(cordData['x'])
+        yCord = (float(cordData['y']) - 100) * -1
+        cordsWereUpdated = True
+  
+    def setRestartValue(client, userdata, msg: mqtt_client.MQTTMessage)-> None:
+        global restartValue
 
-    client.subscribe(topic)
-    client.on_message = on_message
-    # PARSE YXZ
-    
-    msg.payload.decode()
-    
-    
-    # run non-blocking visualization
-    keepRunning = True
-    while keepRunning:
-        while (arduinoData.inWaiting()== 0):
-            arduinoData.cancel_read()
-            
-            y = 800 * np.cos(np.deg2rad(180)) * np.sin(np.deg2rad(180))
-            x = 800 * np.cos(np.deg2rad(180)) * np.cos(np.deg2rad(180))
-            z = 800 * np.sin(np.deg2rad(180))
-            
-            pointCloudColors.extend([[0.1,0.1,0.1]])
-            pcd.colors = o3d.utility.Vector3dVector(pointCloudColors)      
-            pcd.points.extend(o3d.utility.Vector3dVector([[x,y,z]]))
-            vis.update_geometry(pcd)
-            keepRunning = vis.poll_events()
+        restartValue = int(msg.payload)
 
-            if keepRunning == False:
-                break
+    client.message_callback_add(sub=CORD_TOPIC, callback=setCords)
+    client.message_callback_add(sub=RESTART_TOPIC, callback=setRestartValue)
 
-            vis.update_renderer()
-            continue
-            
-        if keepRunning == False:
-            break
-            
-        time.sleep(.001)                  
-        dataPacket = arduinoData.readline()            
-        # check if full data is received. 
-        while not '\\n'in str(dataPacket):        
-        
-            time.sleep(.001)              
-            temp = arduinoData.readline()        
-            if not not temp.decode():     
-                dataPacket = (dataPacket.decode()+temp.decode()).encode()
-        
-        dataPacket = str(dataPacket, 'utf-8')
-        dataPacket = dataPacket.strip('\r\n')
-        splitPacket = dataPacket.split(",")
-
-        if ('' not in splitPacket and len(splitPacket) == 3):
-            for i in range(len(splitPacket)):
-                splitPacket[i] = '.'.join(splitPacket[i].split('.',-1)[:2])
-                
-                if splitPacket[i].startswith('.'):
-                    continue
-            
-            lidarDistance = float(splitPacket[0])
-            xAngle = float(splitPacket[2])
-            yAngle = (float(splitPacket[1]) - 100) * -1
-
-            # set the depth of the white color dependent on the lidar distance
-            colorDepth = 1 - lidarDistance / 1000
-
-            # convert spherical coordinates to cartesian coordinates
-            y = lidarDistance * np.cos(np.deg2rad(yAngle)) * np.sin(np.deg2rad(xAngle))
-            x = lidarDistance * np.cos(np.deg2rad(yAngle)) * np.cos(np.deg2rad(xAngle))
-            z = lidarDistance * np.sin(np.deg2rad(yAngle))
-
-            # add point with white color depth to cloud
-            pointCloudColors.extend([[colorDepth,colorDepth,colorDepth]])
-            pcd.colors = o3d.utility.Vector3dVector(pointCloudColors)      
-            pcd.points.extend(o3d.utility.Vector3dVector([[x,y,z]]))
-            
-            vis.update_geometry(pcd)
-
-            print("Y = ",y," X = ",x," Z = ",z)
-            
-        keepRunning = vis.poll_events()
-        vis.update_renderer()
-    
-    
-    
-
-def runMQTT():
-    client = connect_mqtt()
-    subscribe(client)
-    client.loop_forever()
-    # client.loop_start()
-    # publish(client)
-    
-    # client.loop_stop()
-
-
-
-
-
-
-
-
-def startGUI(y, x, z): 
-    # initialize Arduino
-    arduinoData = serial.Serial('com3', 115200)
-    time.sleep(1)
-
-    # create Visualizer and Window
-    vis = o3d.visualization.Visualizer()
-    vis.create_window(height=640, width=860)
-
+def initStartingPoints(vis)-> None:
     # set render options (background color and size of the points)
     visRenderOption = vis.get_render_option()
     visRenderOption.background_color = np.asarray([0,0,0])
@@ -185,7 +105,8 @@ def startGUI(y, x, z):
         [0,0,400],
         [180,0,400],
         [0,70,400],
-        [180,70,400]]
+        [180,70,400]
+    ]
 
     convertedStartingPoints = []
     for startingPoint in startingPoints:
@@ -198,6 +119,16 @@ def startGUI(y, x, z):
     pcd = o3d.geometry.PointCloud()
     pcd.points = o3d.utility.Vector3dVector(convertedStartingPoints)
     vis.add_geometry(pcd)
+    
+    return pcd
+    
+def startGUI(): 
+    time.sleep(1)
+    # create Visualizer and Window
+    vis = o3d.visualization.Visualizer()
+    vis.create_window(height=640, width=860)
+
+    pcd = initStartingPoints(vis)
 
     # initialize PointCloudcolor array with the 8 starting points
     pointCloudColors = [
@@ -210,9 +141,68 @@ def startGUI(y, x, z):
         [0.1,0.1,0.1],
         [0.1,0.1,0.1]
     ]
-
     
+    # run non-blocking visualization
+    keepRunning = True
+    while keepRunning:
+        if keepRunning == False:
+            break
+        
+        global cordsWereUpdated
+        if cordsWereUpdated == True:
+            # set the depth of the white color dependent on the lidar distance
+            colorDepth = 1 - zCord / 1000
 
+            # convert spherical coordinates to cartesian coordinates
+            x = zCord * np.cos(np.deg2rad(yCord)) * np.cos(np.deg2rad(xCord))
+            y = zCord * np.cos(np.deg2rad(yCord)) * np.sin(np.deg2rad(xCord))
+            z = zCord * np.sin(np.deg2rad(yCord))
 
+            # add point with white color depth to cloud
+            pointCloudColors.extend([[colorDepth,colorDepth,colorDepth]])
+            pcd.colors = o3d.utility.Vector3dVector(pointCloudColors)      
+            pcd.points.extend(o3d.utility.Vector3dVector([[x,y,z]]))
+            
+            vis.update_geometry(pcd)
+            
+            cordsWereUpdated = False
+         
+        global restartValue
+        if restartValue == 1:
+            vis.clear_geometries()
+            restartValue = 0
+            pcd = initStartingPoints(vis)
+
+            # initialize PointCloudcolor array with the 8 starting points
+            pointCloudColors = [
+                [0.1,0.1,0.1],
+                [0.1,0.1,0.1],
+                [0.1,0.1,0.1],
+                [0.1,0.1,0.1],
+                [0.1,0.1,0.1],
+                [0.1,0.1,0.1],
+                [0.1,0.1,0.1],
+                [0.1,0.1,0.1]
+            ]
+            
+        keepRunning = vis.poll_events()
+        vis.update_renderer()
+
+def setUpClient() -> mqtt_client.Client:
+    client = connect_mqtt()
+    subscribeTopics(client)
+    addCallbacksToTopics(client)
+    client.loop_start()
+    
+    return client
+
+def disconnectClient(client: mqtt_client.Client) -> None:
+    client.loop_stop()
+    client.disconnect()
+    
 if __name__ == '__main__':
+    client = setUpClient()
+    
     startGUI()
+    
+    disconnectClient(client)
