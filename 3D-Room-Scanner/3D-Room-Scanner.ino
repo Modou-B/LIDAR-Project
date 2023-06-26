@@ -3,190 +3,236 @@
 #include <Servo.h>
 #include <ESP8266WiFi.h>
 #include <PubSubClient.h>
+#include <ArduinoJson.h>
 
+Servo horizontalServo;
+Servo verticalServo;
 
+const double minHorizontalServoMicroDegree = 544;
+const double maxHorizontalServoMicroDegree = 2400;
+const double minVerticalServoMicroDegree = 853;
+const double maxVerticalServoMicroDegree = 1575;
+const double horizontalStep = (maxHorizontalServoMicroDegree - minHorizontalServoMicroDegree) / 180;
+const double verticalStep = (maxVerticalServoMicroDegree - minVerticalServoMicroDegree) / 70;
 
-const double minHorizontalServoMicroDegree = 544; // get data tomorrow
-const double maxHorizontalServoMicroDegree = 2400; // get data tomorrow
-const double minVerticalServoMicroDegree = 853; // get data tomorrow
-const double maxVerticalServoMicroDegree = 1575; //get data tomorrow
-
-const char* _SSID = "FRITZ!Box 6660 Cable EF";
-const char* _Password = "*****************";
-const char* mqtt_server = "127.0.0.1";
-const char* mqtt_user = "user";
-const char* mqtt_password = "test";
+const double horizontalInterval = horizontalStep / 2;
+const double verticalInterval = verticalStep / 2;
 
 double horizontalMicroDegreeT;
 double verticalMicroDegree;
 double horizontalDegree;
 double verticalDegree;
 
-Servo horizontalServo;
-Servo verticalServo;
+// Max loop Servo rounds
+double maxFastLoopServoRounds = 12780.0;
 
-// int startScript = 0; // 1 = Start script, 0 = Stop script
+// Slow Loop Starting Values
+double slowLoopStartingX = 544;
+double slowLoopStartingY = 1575;
+
+// Slow loop counters
+int slowLoopX = 0;
+int slowLoopY = 100;
+
+int slowLoopXCounter = 0;
+int slowLoopYCounter = 0;
+
+
+// Fast Loop Starting Values
+int fastLoopStartingX = 0;
+int fastLoopStartingY = 100;
 
 // Lidar port allocation
 TFMini tfmini;
-SoftwareSerial SerialTFMini(2, 0);
+SoftwareSerial SerialTFMini(5,4);
+
+const char* _SSID = "AndroidAP_7896";
+const char* _Password = "passwordff";
+const char* mqtt_server = "192.168.43.39";
+//const char* mqtt_user = "roger";
+// const char* mqtt_password = "password";
 
 WiFiClient espClient;
 PubSubClient client(espClient);
 
+// Topic Values
+int stopScript = 0;
+int startScript = 0;
+int restartScript = 0;
+int speedMode = 1;
 
+// SUBSCRIBE TOPICS
+const char* START_TOPIC = "lidar/start";
+const char* STOP_TOPIC = "lidar/stop";
+const char* RESTART_TOPIC = "lidar/restart";
+const char* SPEEDMODE_TOPIC = "lidar/speedMode";
+const char* Y_POSITITON_TOPIC = "lidar/setYPosition";
+const char* X_POSITITON_TOPIC = "lidar/setXPosition";
 
+// PUBLISH TOPICS
+const char* CORDS_TOPIC = "lidar/sendCords";
+const char* PROCESS_TOPIC = "lidar/process";
+const char* POSITION_TOPIC = "lidar/positions";
 
+StaticJsonDocument<256> cords;
+char out[128];
 
-void callback(char* topic, byte* payload, unsigned int length) 
+StaticJsonDocument<50> process;
+char processMessage[25];
+
+StaticJsonDocument<100> positions;
+char positionMessage[50];
+
+double calculateLidarProcess(double maxLoopRounds, double currentXValue, double currentYValue)
 {
-  Serial.print("Message arrived [");
-  Serial.print(topic);
-  Serial.print("] ");
-  
-  for (int i = 0; i < length; i++) 
-  {
-    Serial.print((char)payload[i]);
-  }
-  
-  Serial.println();
-
-  // Switch on the LED if an 1 was received as first character
-  if ((char)payload[0] == '1') 
-  {
-    digitalWrite(LED_BUILTIN, LOW);   // Turn the LED on (Note that LOW is the voltage level
-    // but actually the LED is on; this is because
-    // it is active low on the ESP-01)
-  } else 
-  {
-    digitalWrite(LED_BUILTIN, HIGH);  // Turn the LED off by making the voltage HIGH
-  }
+  return (currentYValue * 180) / maxLoopRounds;
 }
 
-
-
-void setup_wifi() 
+void publishLidarProcess(double currentXValue, double currentYValue) 
 {
-
-  // We start by connecting to a WiFi network
-  Serial.println();
-  Serial.println();
-  Serial.print("Connecting to ");
-  Serial.println(_SSID);
-
-  WiFi.mode(WIFI_STA);
-  WiFi.begin(_SSID, _Password);
-
-  while (WiFi.status() != WL_CONNECTED) 
-  {
-    delay(500);
-    Serial.print(".");
-  }
-  
-  randomSeed(micros());
-  
-  Serial.println("");
-  Serial.println("WiFi connected");
-  Serial.println("IP address: ");
-  Serial.println(WiFi.localIP());
-}
-
-
-
-void reconnect() 
-{
-  // Loop until we're reconnected
-  while (!client.connected()) 
-  {
-    Serial.print("Attempting MQTT connection...");
+    double currentYProcess = 100 - currentYValue + 1;
+    double currentProcess = calculateLidarProcess(maxFastLoopServoRounds, currentXValue, currentYProcess);
     
-    // Create a random client ID
-    String clientId = "ESP8266Client-";
-    clientId += String(random(0xffff), HEX);
-    
-    // Attempt to connect
-    if (client.connect(clientId.c_str()), mqtt_user, mqtt_password) 
-    {
-      Serial.println("connected");
-      // Once connected, publish an announcement...
-      client.publish("lidar/sendCords", "hello world");
-      // ... and resubscribe
-      client.subscribe("lidar/start");
-    } else 
-    {
-      Serial.print("failed, rc=");
-      Serial.print(client.state());
-      Serial.println(" try again in 5 seconds");
-      // Wait 5 seconds before retrying
-      delay(5000);
-    }
-  }
+    process["process"] = currentProcess * 100;
+
+    serializeJson(process, processMessage);
+    client.publish(PROCESS_TOPIC, processMessage);
 }
 
-
-
-void getPrizeLoop()
+void slowLoop()
 {
-  double horizontalStep = (maxHorizontalServoMicroDegree - minHorizontalServoMicroDegree) / 180;
-  double verticalStep = (maxVerticalServoMicroDegree - minVerticalServoMicroDegree) / 70;
+  double startingValueX = slowLoopStartingX;
+  double startingValueY = slowLoopStartingY;
 
-  double horizontalInterval = horizontalStep / 2;
-  double verticalInterval = verticalStep / 2;
-  if (startScript == 1) {  
+  positions["x"] = slowLoopX;
+  positions["y"] = slowLoopY;
+
   // --- Set starting positions ---
-  verticalServo.writeMicroseconds(maxVerticalServoMicroDegree);
-  horizontalServo.writeMicroseconds(minHorizontalServoMicroDegree);
-  delay((1000));
+  verticalServo.writeMicroseconds(startingValueY);
+  horizontalServo.writeMicroseconds(startingValueX);
+  delay(800);
 
-  for(double verticalMicroDegreeT = maxVerticalServoMicroDegree; verticalMicroDegreeT >= minVerticalServoMicroDegree; verticalMicroDegreeT -= verticalInterval) {
-    verticalServo.writeMicroseconds(verticalMicroDegreeT);
-    horizontalServo.writeMicroseconds(minHorizontalServoMicroDegree);
-    delay((200));
-    
-    for(double horizontalMicroDegreeT = minHorizontalServoMicroDegree; horizontalMicroDegreeT <= maxHorizontalServoMicroDegree; horizontalMicroDegreeT += horizontalInterval) {
-      horizontalDegree = (horizontalMicroDegreeT - minHorizontalServoMicroDegree) / horizontalStep;
-      verticalDegree = (verticalMicroDegreeT - minVerticalServoMicroDegree) / verticalStep;
-      
-      horizontalServo.writeMicroseconds(horizontalMicroDegreeT);
-      
-      delay((4));
-      GetRange(horizontalDegree, verticalDegree);
-      delay((8));
+  for(double verticalMicroDegree = startingValueY; verticalMicroDegree >= minVerticalServoMicroDegree; verticalMicroDegree -= verticalInterval) {
+    verticalServo.writeMicroseconds(verticalMicroDegree);
+    slowLoopYCounter++;
+
+    slowLoopStartingY = verticalMicroDegree;
+    verticalDegree = ((verticalMicroDegree - minVerticalServoMicroDegree) / verticalStep) + 30;
+
+    cords["y"] = verticalDegree;
+
+    if (slowLoopYCounter == 2) {
+      slowLoopYCounter = 0;
+      slowLoopY--;
+      positions["y"] = slowLoopY;
     }
+
+    horizontalServo.writeMicroseconds(minHorizontalServoMicroDegree);
+    delay(800);
+    
+    for(double horizontalMicroDegree = startingValueX; horizontalMicroDegree <= maxHorizontalServoMicroDegree; horizontalMicroDegree += horizontalInterval) {
+      client.loop();
+      horizontalServo.writeMicroseconds(horizontalMicroDegree);
+      slowLoopXCounter++;
+
+      slowLoopStartingX = horizontalMicroDegree;
+      horizontalDegree = (horizontalMicroDegree - minHorizontalServoMicroDegree) / horizontalStep;
+      cords["x"] = horizontalDegree;
+
+      if (slowLoopXCounter == 2) {
+        slowLoopXCounter = 0;
+        slowLoopX++;
+        positions["x"] = slowLoopX;
+      }
+
+      if (stopScript == 1) {
+        break;
+      }
+
+      if (restartScript == 1) {
+        break;
+      }
+      
+      getRange();
+
+      delay(20);
+    }
+
+    publishLidarProcess(slowLoopX, slowLoopY);
+    if (stopScript == 1) {
+        break;
+    }
+
+    if (restartScript == 1) {
+      break;
+    }
+
+    slowLoopStartingX = 544;
+    startingValueX = 544;
+    slowLoopX = 0;
   }
-  startScript = 0;
-  }
+  
 
 }
 
-
-
-void getFastLoop()
+void fastLoop()
 {
-  // --- write ---
-  verticalServo.write(100);
-  horizontalServo.write(0);
-  delay((1000));
+  int horizontalStartingValue = fastLoopStartingX;
+  int verticalStartingValue = fastLoopStartingY;
 
-  if (startScript) {  
-    for(int j = 100; j >= 30; j--) {
-      verticalServo.write(j);
-      horizontalServo.write(0);
-      delay((200));
-      
-      for(int i = 0; i <= 180; i++ ) {
-        GetRange(j,i);
-        horizontalServo.write(i);
-        delay((4));
+  horizontalServo.write(horizontalStartingValue);
+  verticalServo.write(verticalStartingValue);
+  
+  while (horizontalServo.read() != horizontalStartingValue) {
+    delay(400);
+  }
+
+  for(int j = verticalStartingValue; j >= 30; j--) {
+    verticalServo.write(j);
+
+    fastLoopStartingY = j;
+    cords["y"] = j;
+    positions["y"] = j;
+    
+    horizontalServo.write(horizontalStartingValue);
+    while (horizontalServo.read() != horizontalStartingValue) {
+      delay(400);
+    }
+    
+    for(int i = horizontalStartingValue; i <= 180; i++ ) {
+      client.loop();
+
+      fastLoopStartingX = i;
+      cords["x"] = i;
+      positions["x"] = i;
+
+      getRange();
+
+      delay(20);
+
+      horizontalServo.write(i);
+      if (stopScript == 1) {
+        break;
+      }
+
+      if (restartScript == 1) {
+        break;
       }
     }
-    verticalServo.write(100);
-    horizontalServo.write(0);
-    startScript = 0;
+
+    publishLidarProcess(fastLoopStartingX, fastLoopStartingY);
+    if (stopScript == 1) {
+        break;
+    }
+
+    if (restartScript == 1) {
+      break;
+    }
+
+    horizontalStartingValue = 0;
+    fastLoopStartingX = 0;
   }
 }
-
-
 
 void getTFminiData(int* distance)
 {
@@ -219,11 +265,10 @@ void getTFminiData(int* distance)
       i++;
     }
   }
+
 }
  
-
-
-void GetRange(double horizontalDegreeTest, double verticalDegreeTest)
+void getRange()
 {
   int distance = 0;
   getTFminiData(&distance);
@@ -232,53 +277,208 @@ void GetRange(double horizontalDegreeTest, double verticalDegreeTest)
     getTFminiData(&distance);
 
     if (distance) {
-      Serial.print(distance);
-      Serial.print(",");
-      Serial.print(horizontalDegreeTest);
-      Serial.print(",");
-      Serial.println(verticalDegreeTest);
+      cords["z"] = distance;
+
+      serializeJson(cords, out);
+      client.publish(CORDS_TOPIC, out);
+      delay(4);
+      serializeJson(positions, positionMessage);
+      client.publish(POSITION_TOPIC, positionMessage);
+
     }
   }  
 }
 
+void callback(char* topic, byte* payload, unsigned int length) 
+{
+  if (strcmp(topic, START_TOPIC) == 0){    
+    Serial.print("asdhasd, rc=");
 
+    int startValue = (char)payload[0] - '0';
+    startScript = startValue;
+    
+    stopScript = 0;
+  }
 
+  if (strcmp(topic, STOP_TOPIC) == 0) {
+    int stopValue = (char)payload[0] - '0';
+    stopScript = stopValue;
 
+    startScript = 0;
+  }
 
+  if (strcmp(topic, RESTART_TOPIC) == 0) {
+    int restartValue = (char)payload[0] - '0';
+    restartScript = restartValue;
+
+    fastLoopStartingX = 0;
+    fastLoopStartingY = 100;
+    slowLoopStartingX = 544;
+    slowLoopStartingY = 1575;
+    slowLoopX = 0;
+    slowLoopY = 100;
+
+    slowLoopXCounter = 0;
+    slowLoopYCounter = 0;
+  }  
+   
+  if (strcmp(topic, SPEEDMODE_TOPIC) == 0) {
+    if (startScript == 0 && stopScript == 0) {
+      int speedValue = (char)payload[0] - '0';
+      speedMode = speedValue;
+    }
+  }  
+
+  if (strcmp(topic, Y_POSITITON_TOPIC) == 0) {
+    if (startScript == 0 && stopScript == 0) {
+      payload[length] = '\0';
+      int yPosition = atoi((char *)payload);
+
+      slowLoopStartingY = maxVerticalServoMicroDegree - ((100 - yPosition) * verticalStep);
+      slowLoopY = 100;
+      fastLoopStartingY = yPosition;
+    }
+  }  
+
+  if (strcmp(topic, X_POSITITON_TOPIC) == 0) {
+    if (startScript == 0 && stopScript == 0) {
+      payload[length] = '\0';
+      int xPosition = atoi((char *)payload);
+
+      slowLoopStartingX = minHorizontalServoMicroDegree + (xPosition * horizontalStep);
+      slowLoopX = 0;
+      fastLoopStartingX = xPosition;
+    }
+  }  
+}
+
+void setup_wifi() 
+{
+  // We start by connecting to a WiFi network
+  Serial.println();
+  Serial.println();
+  Serial.print("Connecting to ");
+  Serial.println(_SSID);
+
+  WiFi.mode(WIFI_STA);
+  WiFi.begin(_SSID, _Password);
+
+  while (WiFi.status() != WL_CONNECTED) 
+  {
+    delay(500);
+    Serial.print(".");
+  }
+  
+  randomSeed(micros());
+  
+  Serial.println("");
+  Serial.println("WiFi connected");
+  Serial.println("IP address: ");
+  Serial.println(WiFi.localIP());
+}
+
+void reconnect() 
+{
+  // Loop until we're reconnected
+  while (!client.connected()) 
+  {
+    Serial.print("Attempting MQTT connection...");
+    
+    // Create a random client ID
+    String clientId = "ESP8266Client-";
+    clientId += String(random(0xffff), HEX);
+    
+    // Attempt to connect
+    // if (client.connect(clientId.c_str()), mqtt_user, mqtt_password) 
+    if (client.connect(clientId.c_str())) 
+    {
+      Serial.println("connected");
+
+      client.subscribe(START_TOPIC);
+      client.subscribe(STOP_TOPIC);
+      client.subscribe(RESTART_TOPIC);
+      client.subscribe(SPEEDMODE_TOPIC);
+      client.subscribe(Y_POSITITON_TOPIC);
+      client.subscribe(X_POSITITON_TOPIC);      
+    } else {
+      Serial.print("failed, rc=");
+      Serial.print(client.state());
+      Serial.println(" try again in 5 seconds");
+      // Wait 5 seconds before retrying
+      delay(5000);
+    }
+  }
+}
 
 void setup()
 {
+  horizontalServo.attach(14);
+  verticalServo.attach(12);
   Serial.begin(115200);
-  setup_wifi();
-  pinMode(LED_BUILTIN, OUTPUT);    // Initialize the LED_BUILTIN pin as an output
 
+  while (!Serial);                        // wait for serial port to connect. Needed for native USB port only
+
+  setup_wifi();
   client.setServer(mqtt_server, 1883);
   client.setCallback(callback);
 
-  if (startScript == 1) {
-    horizontalServo.attach(9);
-    verticalServo.attach(10);
-    Serial.begin(9600);
-    Serial.begin(14400);                   //Initialize hardware serial port (serial debug port)
-
-    while (!Serial);                        // wait for serial port to connect. Needed for native USB port only
-    // Serial.println("Initializing...");
-    SerialTFMini.begin(TFMINI_BAUDRATE);    //Initialize the data rate for the SoftwareSerial port
-    tfmini.begin(&SerialTFMini);            //Initialize the TF Mini sensor
-  } 
+  Serial.println("InitializingTasd...");
+  SerialTFMini.begin(TFMINI_BAUDRATE);    //Initialize the data rate for the SoftwareSerial port
+  tfmini.begin(&SerialTFMini);            //Initialize the TF Mini sensor
 }
  
-
-
 void loop() 
-{
-  //getFastLoop();
-  // getPrizeLoop();
+{ 
+  if (!client.connected()) {
+    reconnect();
+  }
 
-  // if (!client.connected()) 
-  // {
-  //   reconnect();
-  // }
-  // 
-  // client.loop();
+  client.loop();
+
+  if (restartScript == 1) {
+      positions["x"] = 0;
+      positions["y"] = 100;
+
+      serializeJson(positions, positionMessage);
+      client.publish(POSITION_TOPIC, positionMessage);
+
+      delay(8);
+      process["process"] = 0;
+
+      serializeJson(process, processMessage);
+      client.publish(PROCESS_TOPIC, processMessage);
+
+      horizontalServo.write(0);
+      verticalServo.write(100);
+
+      delay(5);
+      stopScript = 0;
+      restartScript = 0;
+      startScript = 0;
+  }
+
+  if (startScript == 1) {
+    delay(2000);
+    if (speedMode == 1) {
+      fastLoop();
+    }
+
+    if (speedMode == 0) {
+      slowLoop();
+    }
+
+    startScript = 0;
+  }
+
+  if (startScript == 0 && stopScript == 0) {
+    delay(5);
+    if (verticalServo.read() != fastLoopStartingY) {
+      verticalServo.write(fastLoopStartingY);
+    }
+    delay(5);
+    if (horizontalServo.read() != fastLoopStartingX) {
+      horizontalServo.write(fastLoopStartingX);    
+    }
+  }
 }
+
